@@ -46,6 +46,9 @@
 
 QT_FORWARD_DECLARE_CLASS(QAbstractButton)
 
+// ADS_VERSION defined as 0x00MMmmpp
+#define ADS_VERSION 0x00050000
+
 #ifndef ADS_STATIC
 #ifdef ADS_SHARED_EXPORT
 #define ADS_EXPORT Q_DECL_EXPORT

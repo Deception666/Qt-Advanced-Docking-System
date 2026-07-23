@@ -7,34 +7,32 @@ endif (POLICY CMP0091)
 # Add cmake modules path (required for Versioning.cmake and git revision description)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules ${CMAKE_MODULE_PATH})
 
-# By default, the version information is extracted from the git index. However,
-# we can override this behavior by explicitly setting ADS_VERSION and
-# skipping the git checks. This is useful for cases where this project is being
-# used independently of its original git repo (e.g. vendored in another project)
-if(NOT ADS_VERSION)
-    include(GetGitRevisionDescription)
-    git_describe(GitTagVersion --tags)
-    string(REGEX REPLACE "^([0-9]+)\\..*" "\\1" VERSION_MAJOR "${GitTagVersion}")
-    string(REGEX REPLACE "^[0-9]+\\.([0-9]+).*" "\\1" VERSION_MINOR "${GitTagVersion}")
-    string(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" VERSION_PATCH "${GitTagVersion}")
-    set(VERSION_SHORT "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
-    set(VERSION_SONAME "${VERSION_MAJOR}")
-else()
-    string(REGEX MATCHALL "[\.]" VERSION_DOT_MATCHES ${ADS_VERSION})
-    list(LENGTH VERSION_DOT_MATCHES VERSION_DOT_COUNT)
-    if(VERSION_DOT_COUNT EQUAL 2)
-        set(VERSION_SHORT ${ADS_VERSION})
-        string(REGEX REPLACE "^([0-9]+)\\..*" "\\1" VERSION_SONAME "${ADS_VERSION}")
-        # Set PROJECT_VERSION_* variables for Versioning.cmake
-        string(REGEX MATCHALL "[0-9]+" VERSION_PARTS "${ADS_VERSION}")
-        list(GET VERSION_PARTS 0 PROJECT_VERSION_MAJOR)
-        list(GET VERSION_PARTS 1 PROJECT_VERSION_MINOR)
-        list(GET VERSION_PARTS 2 PROJECT_VERSION_PATCH)
-    else()
-        message(FATAL_ERROR "ADS_VERSION must be in major.minor.patch format, e.g. 3.8.1. Got ${ADS_VERSION}")
-    endif()
-endif()
+# parse ads_globals.h for the current version information
+file(
+   READ
+   "${CMAKE_CURRENT_SOURCE_DIR}/src/ads_globals.h"
+   ads_globals_h_contents)
 
+set(re_hex "[0-9A-Fa-f][0-9A-Fa-f]")
+
+string(
+   REGEX MATCH
+   "ADS_VERSION[ \t]*0x${re_hex}(${re_hex})(${re_hex})(${re_hex})"
+   ads_version_full_match
+   ${ads_globals_h_contents})
+
+if(NOT CMAKE_MATCH_COUNT EQUAL 3)
+   message(FATAL_ERROR "Unable to parse ADS_VERSION from ads_globals.h")
+else()
+   math(EXPR VERSION_MAJOR "0x${CMAKE_MATCH_1}" OUTPUT_FORMAT DECIMAL)
+   math(EXPR VERSION_MINOR "0x${CMAKE_MATCH_2}" OUTPUT_FORMAT DECIMAL)
+   math(EXPR VERSION_PATCH "0x${CMAKE_MATCH_3}" OUTPUT_FORMAT DECIMAL)
+
+   set(VERSION_SHORT ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
+   set(VERSION_SONAME ${VERSION_MAJOR})
+
+   message(STATUS "ADS: Building version ${VERSION_SHORT}")
+endif()
 
 project(QtADS LANGUAGES CXX VERSION ${VERSION_SHORT})
 
