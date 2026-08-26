@@ -2,27 +2,29 @@
 #define CREATEMAINVIEWWINDOW_H
 
 #include <QMainWindow>
+#include <Qt>
 
 #include <memory>
 
 namespace Ui
 {
-    class CreateMainViewWindow;
+class CreateMainViewWindow;
 }  // namespace Ui
 
 class CreateMainViewWindow : public QMainWindow
 {
-    Q_OBJECT
+   Q_OBJECT
 
 public:
-    CreateMainViewWindow(QWidget* parent = nullptr);
-    ~CreateMainViewWindow();
+   CreateMainViewWindow(QWidget* parent = nullptr, Qt::WindowFlags flags = { });
+   virtual ~CreateMainViewWindow();
 
 private:
-    void SetupConfigFlagsTreeWidget();
-    void SetupAutoHideFlagsListTreeWidget();
+   void SetupConfigFlagsTreeWidget();
+   void SetupAutoHideFlagsListTreeWidget();
+   void SetupCreateMainWindowPushButton();
 
-    std::unique_ptr<Ui::CreateMainViewWindow> ui;
+   std::unique_ptr< Ui::CreateMainViewWindow > ui;
 
 };
 

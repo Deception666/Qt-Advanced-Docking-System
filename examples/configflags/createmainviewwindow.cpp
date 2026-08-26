@@ -1,23 +1,49 @@
 #include "createmainviewwindow.h"
+#include "mainwindow.h"
 
 #include "ui_createmainviewwindow.h"
 
 #include <DockManager.h>
 
-#include <QStringList>
+#include <QHeaderView>
+#include <QMetaType>
+#include <QObject>
+#include <QPushButton>
 #include <QString>
+#include <QStringList>
+#include <QTreeWidget>
 #include <QTreeWidgetItem>
-#include <Qt>
+#include <QTreeWidgetItemIterator>
 #include <QVariant>
 
-CreateMainViewWindow::CreateMainViewWindow(QWidget *parent) :
-    QMainWindow(parent),
-    ui(std::make_unique<Ui::CreateMainViewWindow>())
+Q_DECLARE_METATYPE(ads::CDockManager::eConfigFlag);
+Q_DECLARE_METATYPE(ads::CDockManager::eAutoHideFlag);
+
+template < typename FlagsT >
+static FlagsT GetDockManagerFlags(QTreeWidget & treeWidget)
+{
+   FlagsT flags { };
+
+   for (QTreeWidgetItemIterator item { &treeWidget }; *item; ++item)
+   {
+      if ((*item)->checkState(1) == Qt::CheckState::Checked)
+      {
+         flags |= (*item)->data(0, Qt::ItemDataRole::UserRole).value< typename FlagsT::enum_type >();
+      }
+   }
+
+   return flags;
+}
+
+CreateMainViewWindow::CreateMainViewWindow(QWidget *parent, Qt::WindowFlags flags) :
+QMainWindow(parent, flags),
+ui(std::make_unique<Ui::CreateMainViewWindow>())
 {
     ui->setupUi(this);
 
     SetupConfigFlagsTreeWidget();
     SetupAutoHideFlagsListTreeWidget();
+    SetupCreateMainWindowPushButton();
 }
 
 CreateMainViewWindow::~CreateMainViewWindow()
@@ -29,7 +55,7 @@ void CreateMainViewWindow::SetupConfigFlagsTreeWidget()
    ui->configFlagsListTreeWidget->setColumnCount(2);
 
    ui->configFlagsListTreeWidget->setHeaderLabels(
-      QStringList { } << "Flag" << "Enabled");
+      QStringList { } << "Dock Manager Flag" << "Enabled");
 
    ui->configFlagsListTreeWidget->header()->setSectionResizeMode(
       QHeaderView::ResizeMode::ResizeToContents);
@@ -102,10 +128,93 @@ void CreateMainViewWindow::SetupConfigFlagsTreeWidget()
       treeItem->setToolTip(0, item.tooltip);
       treeItem->setToolTip(1, item.tooltip);
 
-      treeItem->setData(0, Qt::UserRole, QVariant { item.flag });
+      treeItem->setData(0, Qt::ItemDataRole::UserRole, QVariant { item.flag });
    }
 }
 
 void CreateMainViewWindow::SetupAutoHideFlagsListTreeWidget()
 {
+   ui->autoHideFlagsListTreeWidget->setColumnCount(2);
+
+   ui->autoHideFlagsListTreeWidget->setHeaderLabels(
+      QStringList { } << "Auto Hide Flag" << "Enabled");
+
+   ui->autoHideFlagsListTreeWidget->header()->setSectionResizeMode(
+      QHeaderView::ResizeMode::ResizeToContents);
+
+   using ConfigFlag = ads::CDockManager::eAutoHideFlag;
+
+   struct Item
+   {
+      QString name;
+      QString tooltip;
+      ConfigFlag flag;
+      bool checked;
+   };
+
+   const Item items[]
+   {
+      { "AutoHideFeatureEnabled", "enables / disables auto hide feature", ConfigFlag::AutoHideFeatureEnabled, true },
+      { "DockAreaHasAutoHideButton", "If the flag is set each dock area has a auto hide menu button", ConfigFlag::DockAreaHasAutoHideButton, true },
+      { "AutoHideButtonTogglesArea", "If the flag is set, the auto hide button enables auto hiding for all dock widgets in an area, if disabled, only the current dock widget will be toggled", ConfigFlag::AutoHideButtonTogglesArea, false },
+      { "AutoHideButtonCheckable", "If the flag is set, the auto hide button will be checked and unchecked depending on the auto hide state. Mainly for styling purposes.", ConfigFlag::AutoHideButtonCheckable, false },
+      { "AutoHideSideBarsIconOnly", "show only icons in auto hide side tab - if a tab has no icon, then the text will be shown", ConfigFlag::AutoHideSideBarsIconOnly, false },
+      { "AutoHideShowOnMouseOver", "show the auto hide window on mouse over tab and hide it if mouse leaves auto hide container", ConfigFlag::AutoHideShowOnMouseOver, false },
+      { "AutoHideCloseButtonCollapsesDock", "Close button of an auto hide container collapses the dock instead of hiding it completely", ConfigFlag::AutoHideCloseButtonCollapsesDock, false },
+      { "AutoHideHasCloseButton", "If the flag is set an auto hide title bar has a close button", ConfigFlag::AutoHideHasCloseButton, false },
+      { "AutoHideHasMinimizeButton", "if this flag is set, the auto hide title bar has a minimize button to collapse the dock widget", ConfigFlag::AutoHideHasMinimizeButton, true },
+      { "AutoHideOpenOnDragHover", "if this flag is set, dragging hover the tab bar will open the dock", ConfigFlag::AutoHideOpenOnDragHover, false },
+      { "AutoHideCloseOnOutsideMouseClick", "if this flag is set, the auto hide dock container will collapse if the user clicks outside of the container, if not set, the auto hide container can be closed only via click on sidebar tab", ConfigFlag::AutoHideCloseOnOutsideMouseClick, true }
+   };
+
+   for (const auto & item : items)
+   {
+      auto treeItem = new QTreeWidgetItem {
+         ui->autoHideFlagsListTreeWidget,
+         QStringList { item.name }
+      };
+
+      treeItem->setFlags(treeItem->flags() | Qt::ItemFlag::ItemIsUserCheckable);
+      treeItem->setCheckState(1, item.checked ? Qt::CheckState::Checked : Qt::CheckState::Unchecked);
+
+      treeItem->setToolTip(0, item.tooltip);
+      treeItem->setToolTip(1, item.tooltip);
+
+      treeItem->setData(0, Qt::ItemDataRole::UserRole, QVariant { item.flag });
+   }
+}
+
+void CreateMainViewWindow::SetupCreateMainWindowPushButton()
+{
+   QObject::connect(
+      ui->createMainWindowPushButton,
+      &QPushButton::clicked,
+      [ this ] (
+         const bool /*checked*/ )
+      {
+         const auto configFlags = GetDockManagerFlags< ads::CDockManager::ConfigFlags >(*ui->configFlagsListTreeWidget);
+         const auto autoHideFlags = GetDockManagerFlags< ads::CDockManager::AutoHideFlags >(*ui->autoHideFlagsListTreeWidget);
+
+         ads::CDockManager::setConfigFlags(configFlags);
+         ads::CDockManager::setAutoHideConfigFlags(autoHideFlags);
+
+         auto mainWindow = new MainWindow;
+
+         auto dockManager = new ads::CDockManager { mainWindow };
+
+         mainWindow->SetDockManager(dockManager);
+         mainWindow->setAttribute(Qt::WidgetAttribute::WA_DeleteOnClose);
+         mainWindow->show();
+
+         ui->createMainWindowPushButton->setEnabled(false);
+
+         QObject::connect(
+            mainWindow,
+            &QObject::destroyed,
+            mainWindow,
+            std::bind(
+               &QPushButton::setEnabled,
+               ui->createMainWindowPushButton,
+               true));
+      });
 }

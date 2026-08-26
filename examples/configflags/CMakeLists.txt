@@ -8,6 +8,9 @@ add_executable(ConfigFlagsExample WIN32
     createmainviewwindow.cpp
     createmainviewwindow.h
     createmainviewwindow.ui
+    mainwindow.cpp
+    mainwindow.h
+    mainwindow.ui
 )
 target_include_directories(ConfigFlagsExample PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../src")
 target_link_libraries(ConfigFlagsExample PRIVATE ads::qtadvanceddocking)

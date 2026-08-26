@@ -27,10 +27,18 @@
        <number>0</number>
       </property>
       <item>
-       <widget class="QTreeWidget" name="configFlagsListTreeWidget"/>
+       <widget class="QTreeWidget" name="configFlagsListTreeWidget">
+        <property name="alternatingRowColors">
+         <bool>true</bool>
+        </property>
+       </widget>
       </item>
       <item>
-       <widget class="QTreeWidget" name="autoHideFlagsListTreeWidget"/>
+       <widget class="QTreeWidget" name="autoHideFlagsListTreeWidget">
+        <property name="alternatingRowColors">
+         <bool>true</bool>
+        </property>
+       </widget>
       </item>
      </layout>
     </item>
